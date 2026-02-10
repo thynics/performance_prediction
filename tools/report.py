@@ -60,7 +60,8 @@ def main() -> None:
     except Exception:
         pass
 
-    print("Report written to data/reports/")
+    print(f"[report] overall_time_mape={summary['overall_time_mape']:.4f} overall_speedup_mape={summary['overall_speedup_mape']:.4f}")
+    print("[report] written to data/reports/")
 
 
 if __name__ == "__main__":

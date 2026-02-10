@@ -81,10 +81,12 @@ def main() -> None:
     env = os.environ.copy()
     env["CUDA_VISIBLE_DEVICES"] = str(cfg["device"]["gpu_index"])
     ensure_dir(args.out_dir)
+    print(f"[ncu] mode={args.mode} jobs={len(jobs)} baseline=({baseline[0]},{baseline[1]})")
 
-    for job in jobs:
+    for idx, job in enumerate(jobs, 1):
         job_id = stable_id(job["name"], job["params"])
         out_csv = os.path.join(args.out_dir, f"{args.mode}_{job_id}.csv")
+        print(f"[ncu] {idx}/{len(jobs)} {job_id} -> {out_csv}")
         cmd = ["ncu", "--metrics", metrics_arg, "--csv"]
         extra_args = cfg.get("ncu", {}).get("extra_args", [])
         if extra_args:

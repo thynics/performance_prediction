@@ -27,6 +27,7 @@ def main() -> None:
     if df.empty:
         print("No test data found.")
         return
+    print(f"[predict] rows={len(df)}")
     with open(args.meta, "r", encoding="utf-8") as f:
         meta = json.load(f)
 
@@ -62,7 +63,8 @@ def main() -> None:
     with open(os.path.join(args.out_dir, "predict_eval_summary.json"), "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
 
-    print(f"Wrote: {out_rows}")
+    print(f"[predict] overall time_mape={overall['time_mape']:.4f} speedup_mape={overall['speedup_mape']:.4f}")
+    print(f"[predict] wrote {out_rows}")
 
 
 if __name__ == "__main__":

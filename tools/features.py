@@ -131,7 +131,9 @@ def main() -> None:
     ensure_dir(args.out_dir)
 
     pattern = os.path.join(args.ncu_dir, f"{args.mode}_*.csv")
-    for csv_path in glob.glob(pattern):
+    files = list(glob.glob(pattern))
+    print(f"[features] mode={args.mode} files={len(files)}")
+    for idx, csv_path in enumerate(files, 1):
         base = os.path.basename(csv_path)
         job_id = base.replace(f"{args.mode}_", "").replace(".csv", "")
         kernel_metrics = _load_kernel_metrics(csv_path)
@@ -143,7 +145,7 @@ def main() -> None:
                 "u_dims": uvec["dims"],
                 "u_values": uvec["values"],
             }, f, indent=2)
-        print(f"[U] {out_path}")
+        print(f"[features] {idx}/{len(files)} {out_path}")
 
 
 if __name__ == "__main__":

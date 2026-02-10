@@ -90,21 +90,32 @@ def run_jobs(mode: str, exe: str, job_cfg: str, config: str, out_dir: str, resum
     jobs = _bench_jobs(job_cfg) if mode == "bench" else _task_jobs(job_cfg)
 
     ensure_dir(out_dir)
+    total_runs = len(jobs) * len(grid)
+    print(f"[runner] mode={mode} jobs={len(jobs)} grid={len(grid)} total_runs={total_runs}")
+    print(f"[runner] baseline_mem={baseline[0]} baseline_gpu={baseline[1]}")
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     out_path = os.path.join(out_dir, f"runs_{mode}_{timestamp}.jsonl")
 
     env = os.environ.copy()
     env["CUDA_VISIBLE_DEVICES"] = str(cfg["device"]["gpu_index"])
+    start_all = time.time()
 
     existing = _load_existing(out_dir, mode) if resume else set()
 
-    for job in jobs:
+    run_idx = 0
+    for j_idx, job in enumerate(jobs, 1):
         job_id = stable_id(job["name"], job["params"])
+        print(f"[runner] job {j_idx}/{len(jobs)} {job_id} params={job['params']}")
         for mem_mhz, gpu_mhz in grid:
             freq_id = f"mem{mem_mhz}_gpu{gpu_mhz}"
             record_id = f"{job_id}__{freq_id}"
             if resume and (job_id, mem_mhz, gpu_mhz) in existing:
                 continue
+            run_idx += 1
+            elapsed = time.time() - start_all
+            rate = run_idx / elapsed if elapsed > 0 else 0.0
+            eta = (total_runs - run_idx) / rate if rate > 0 else 0.0
+            print(f"[runner] {run_idx}/{total_runs} freq=({mem_mhz},{gpu_mhz}) eta={eta:.1f}s")
 
             # set clocks
             method_ok = False

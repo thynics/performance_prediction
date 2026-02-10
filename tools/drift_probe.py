@@ -82,8 +82,10 @@ def main() -> None:
     jobs = _jobs(args.task_config)
     env = os.environ.copy()
     env["CUDA_VISIBLE_DEVICES"] = str(cfg["device"]["gpu_index"])
-    for job in jobs:
+    print(f"[drift] jobs={len(jobs)} grid={len(grid)} baseline=({baseline[0]},{baseline[1]})")
+    for j_idx, job in enumerate(jobs, 1):
         job_id = stable_id(job["name"], job["params"])
+        print(f"[drift] job {j_idx}/{len(jobs)} {job_id}")
 
         # baseline U
         baseline_u = None

@@ -48,6 +48,7 @@ def main() -> None:
         return
 
     feat_cols = _feature_columns(df_train)
+    print(f"[train] train rows={len(df_train)} val rows={len(df_val)} features={len(feat_cols)}")
     X_train = df_train[feat_cols]
     y_train = df_train["S"]
     X_val = df_val[feat_cols]
@@ -66,6 +67,7 @@ def main() -> None:
         eval_metric=cfg["xgboost"]["eval_metric"],
     )
 
+    print("[train] training...")
     model.fit(
         X_train,
         y_train,
@@ -73,6 +75,9 @@ def main() -> None:
         verbose=False,
         early_stopping_rounds=cfg["xgboost"]["early_stopping_rounds"],
     )
+    best_iter = getattr(model, "best_iteration", None)
+    if best_iter is not None:
+        print(f"[train] best_iteration={best_iter}")
 
     model_path = os.path.join(args.out_dir, "xgb_perf.json")
     model.save_model(model_path)

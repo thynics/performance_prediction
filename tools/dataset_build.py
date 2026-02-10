@@ -34,6 +34,7 @@ def _load_features(feature_dir: str, mode: str) -> Dict[str, Dict[str, Any]]:
 def build_dataset(raw_dir: str, feature_dir: str, mode: str) -> pd.DataFrame:
     runs = _load_runs(raw_dir, mode)
     feats = _load_features(feature_dir, mode)
+    print(f"[dataset] mode={mode} runs={len(runs)} features={len(feats)}")
 
     # Baseline lookup
     baseline_time = {}
@@ -99,6 +100,7 @@ def main() -> None:
     df_bench = build_dataset(args.raw_dir, args.feature_dir, "bench")
     bench_path = os.path.join(out_dir, "bench.parquet")
     df_bench.to_parquet(bench_path, index=False)
+    print(f"[dataset] bench rows={len(df_bench)} -> {bench_path}")
 
     if not df_bench.empty:
         # Group split
@@ -107,14 +109,20 @@ def main() -> None:
         train_idx, val_idx = next(gss.split(df_bench, groups=df_bench["bench_instance_id"]))
         df_train = df_bench.iloc[train_idx]
         df_val = df_bench.iloc[val_idx]
-        df_train.to_parquet(os.path.join(out_dir, "train.parquet"), index=False)
-        df_val.to_parquet(os.path.join(out_dir, "val.parquet"), index=False)
+        train_path = os.path.join(out_dir, "train.parquet")
+        val_path = os.path.join(out_dir, "val.parquet")
+        df_train.to_parquet(train_path, index=False)
+        df_val.to_parquet(val_path, index=False)
+        print(f"[dataset] train rows={len(df_train)} -> {train_path}")
+        print(f"[dataset] val rows={len(df_val)} -> {val_path}")
 
     # Task dataset
     df_task = build_dataset(args.raw_dir, args.feature_dir, "task")
-    df_task.to_parquet(os.path.join(out_dir, "test_tasks.parquet"), index=False)
+    test_path = os.path.join(out_dir, "test_tasks.parquet")
+    df_task.to_parquet(test_path, index=False)
+    print(f"[dataset] test_tasks rows={len(df_task)} -> {test_path}")
 
-    print(f"Wrote: {bench_path}, train/val/test_tasks")
+    print(f"[dataset] done")
 
 
 if __name__ == "__main__":
