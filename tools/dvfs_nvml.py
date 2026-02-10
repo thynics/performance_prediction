@@ -56,6 +56,30 @@ class DvfsController:
                 for gfx in gfxs:
                     pairs.append((int(mem), int(gfx)))
             return pairs
+        # Try query-supported-clocks first (newer nvidia-smi format)
+        pairs: List[Tuple[int, int]] = []
+        try:
+            out_query = self._run([
+                "nvidia-smi",
+                "-i",
+                str(self.gpu_index),
+                "--query-supported-clocks=mem,gr",
+                "--format=csv,noheader,nounits",
+            ])
+            for line in out_query.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                parts = [p.strip() for p in line.split(",")]
+                if len(parts) >= 2 and parts[0].isdigit() and parts[1].isdigit():
+                    pairs.append((int(parts[0]), int(parts[1])))
+        except Exception:
+            out_query = ""
+
+        if pairs:
+            return pairs
+
+        # Fallback to SUPPORTED_CLOCKS section
         out = self._run([
             "nvidia-smi",
             "-i",
@@ -64,7 +88,6 @@ class DvfsController:
             "-d",
             "SUPPORTED_CLOCKS",
         ])
-        pairs = []
         mem = None
         for line in out.splitlines():
             line = line.strip()
@@ -77,7 +100,8 @@ class DvfsController:
                     gfx = int(m.group(1))
                     pairs.append((mem, gfx))
         if not pairs:
-            raise RuntimeError("Unable to parse supported clocks from nvidia-smi output")
+            snippet = out[:800] if out else out_query[:800]
+            raise RuntimeError(f"Unable to parse supported clocks from nvidia-smi output. Snippet:\\n{snippet}")
         return pairs
 
     def set_app_clocks(self, mem_mhz: int, gpu_mhz: int) -> bool:
