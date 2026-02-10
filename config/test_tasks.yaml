@@ -1,0 +1,35 @@
+version: 1
+
+tasks:
+  - name: gemm
+    params:
+      m: [256, 512, 1024]
+      n: [256, 512, 1024]
+      k: [256, 512, 1024]
+
+  - name: reduction
+    params:
+      n: [1048576, 16777216]
+
+  - name: embedding_gather
+    params:
+      vocab: [65536]
+      dim: [128, 256]
+      batch: [1024, 2048]
+
+  - name: softmax
+    params:
+      n: [1024, 4096]
+      batch: [256, 512]
+
+  - name: layernorm
+    params:
+      n: [1024, 4096]
+      batch: [256, 512]
+
+  - name: attention_like
+    params:
+      b: [8]
+      h: [8]
+      seqlen: [128, 256]
+      dim: [64, 128]

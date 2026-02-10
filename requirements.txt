@@ -1,0 +1,8 @@
+numpy
+pandas
+pyyaml
+xgboost
+scikit-learn
+pyarrow
+matplotlib
+pynvml

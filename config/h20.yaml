@@ -1,0 +1,89 @@
+version: 1
+
+device:
+  gpu_index: 0
+  require_exclusive_gpu: true
+  persistence_mode: true
+
+baseline:
+  select: "max_supported_pair"
+  override_mhz:
+    mem: null
+    gpu: null
+
+freq_grid:
+  build: "auto_from_supported"
+  mem_levels:
+    policy: "percent_of_max"
+    percents: [1.00, 0.90, 0.80, 0.70, 0.60]
+  gpu_levels_per_mem:
+    policy: "uniform_between_min_max"
+    count: 16
+  include_baseline: true
+  max_pairs: 160
+  snap_to_supported: true
+
+dvfs:
+  lock_method_preference:
+    - "app_clocks"
+    - "lock_clocks"
+    - "power_limit_only"
+
+  stable_check:
+    poll_ms: 50
+    tol_mhz: 15
+    consecutive: 8
+    max_wait_s: 10
+
+  probe_kernel:
+    enabled: true
+    duration_ms: 20
+
+timing:
+  warmup_runs: 10
+  repeat_runs: 30
+  statistic: "median"
+  min_target_runtime_ms: 2.0
+
+ncu:
+  enabled: true
+  profile_only_at_baseline: true
+  launch_count: 1
+  kernel_regex: ".*"
+  metrics_config: "config/ncu_metrics.yaml"
+  extra_args:
+    - "--target-processes"
+    - "all"
+    - "--replay-mode"
+    - "kernel"
+
+dataset:
+  out_dir: "data/datasets"
+  schema_version: 1
+  actual_clocks_record: true
+
+train:
+  random_seed: 20260210
+  split:
+    method: "group_split"
+    group_key: "bench_instance_id"
+    val_ratio: 0.15
+
+xgboost:
+  objective: "reg:squarederror"
+  eval_metric: "mape"
+  params:
+    max_depth: 8
+    learning_rate: 0.05
+    n_estimators: 1200
+    subsample: 0.85
+    colsample_bytree: 0.85
+    reg_lambda: 1.0
+    min_child_weight: 2
+  early_stopping_rounds: 80
+
+paths:
+  raw_runs_dir: "data/raw"
+  ncu_dir: "data/ncu"
+  models_dir: "data/models"
+  reports_dir: "data/reports"

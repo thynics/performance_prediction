@@ -1,0 +1,64 @@
+version: 1
+
+benches:
+  - name: fma_fp32
+    params:
+      size: [1048576, 2097152]
+      iters: [256, 512]
+
+  - name: fma_fp64
+    params:
+      size: [524288, 1048576]
+      iters: [128, 256]
+
+  - name: int32
+    params:
+      size: [1048576, 2097152]
+      iters: [256, 512]
+
+  - name: tensor_gemm
+    params:
+      m: [256, 512]
+      n: [256, 512]
+      k: [256, 512]
+
+  - name: dram_copy
+    params:
+      size: [16777216, 33554432]
+      iters: [64]
+
+  - name: l2_copy
+    params:
+      size: [262144, 524288]
+      iters: [256]
+
+  - name: shared_bw
+    params:
+      size: [1048576]
+      iters: [256]
+
+  - name: pointer_chase
+    params:
+      size: [1048576]
+      iters: [256]
+
+  - name: mixed_ai
+    params:
+      size: [1048576]
+      iters: [256]
+      compute: [4, 8, 16]
+
+  - name: reduction
+    params:
+      size: [16777216]
+      iters: [64]
+
+  - name: divergence
+    params:
+      size: [1048576]
+      iters: [256]
+
+  - name: atomic
+    params:
+      size: [1048576]
+      iters: [256]
