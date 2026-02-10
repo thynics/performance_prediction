@@ -108,6 +108,7 @@ def run_jobs(mode: str, exe: str, job_cfg: str, config: str, out_dir: str, resum
 
             # set clocks
             method_ok = False
+            method_used = None
             for method in cfg["dvfs"]["lock_method_preference"]:
                 if method == "app_clocks":
                     method_ok = ctrl.set_app_clocks(mem_mhz, gpu_mhz)
@@ -117,27 +118,34 @@ def run_jobs(mode: str, exe: str, job_cfg: str, config: str, out_dir: str, resum
                     # no change, just proceed
                     method_ok = True
                 if method_ok:
+                    method_used = method
                     break
 
             if not method_ok:
                 print(f"[WARN] failed to set clocks for {record_id}")
 
-            stable = ctrl.wait_stable(
-                mem_mhz,
-                gpu_mhz,
-                cfg["dvfs"]["stable_check"]["tol_mhz"],
-                cfg["dvfs"]["stable_check"]["consecutive"],
-                cfg["dvfs"]["stable_check"]["max_wait_s"],
-                cfg["dvfs"]["stable_check"]["poll_ms"],
-            )
-            if not stable:
-                print(f"[WARN] clocks not stable for {record_id}")
+            stable = True
+            if method_used in ("app_clocks", "lock_clocks"):
+                stable = ctrl.wait_stable(
+                    mem_mhz,
+                    gpu_mhz,
+                    cfg["dvfs"]["stable_check"]["tol_mhz"],
+                    cfg["dvfs"]["stable_check"]["consecutive"],
+                    cfg["dvfs"]["stable_check"]["max_wait_s"],
+                    cfg["dvfs"]["stable_check"]["poll_ms"],
+                )
+                if not stable:
+                    print(f"[WARN] clocks not stable for {record_id}")
 
             probe = cfg.get("dvfs", {}).get("probe_kernel", {})
             if probe.get("enabled"):
                 time.sleep(probe.get("duration_ms", 0) / 1000.0)
 
             actual_mem, actual_gpu = ctrl.get_current_clocks()
+            try:
+                app_mem, app_gpu = ctrl.get_app_clocks()
+            except Exception:
+                app_mem, app_gpu = None, None
 
             warmup = cfg["timing"]["warmup_runs"]
             repeats = cfg["timing"]["repeat_runs"]
@@ -162,6 +170,8 @@ def run_jobs(mode: str, exe: str, job_cfg: str, config: str, out_dir: str, resum
                 "bench_instance_id": job_id,
                 "freq_target": {"mem": mem_mhz, "gpu": gpu_mhz},
                 "freq_actual": {"mem": actual_mem, "gpu": actual_gpu},
+                "freq_app": {"mem": app_mem, "gpu": app_gpu},
+                "dvfs_method": method_used,
                 "times_ms": times,
                 "time_stat": {"median": p50, "p95": p95},
                 "baseline": {"mem": baseline[0], "gpu": baseline[1]},

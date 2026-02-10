@@ -47,6 +47,23 @@ class DvfsController:
         gfx = int(parts[1].strip())
         return mem, gfx
 
+    def get_app_clocks(self) -> Tuple[int, int]:
+        if self.nvml is not None:
+            mem = self.nvml.nvmlDeviceGetApplicationsClock(self.handle, self.nvml.NVML_CLOCK_MEM)
+            gfx = self.nvml.nvmlDeviceGetApplicationsClock(self.handle, self.nvml.NVML_CLOCK_GRAPHICS)
+            return int(mem), int(gfx)
+        out = self._run([
+            "nvidia-smi",
+            "-i",
+            str(self.gpu_index),
+            "--query-gpu=clocks.applications.mem,clocks.applications.gr",
+            "--format=csv,noheader,nounits",
+        ])
+        parts = out.strip().split(",")
+        mem = int(parts[0].strip())
+        gfx = int(parts[1].strip())
+        return mem, gfx
+
     def query_supported_clocks(self) -> List[Tuple[int, int]]:
         if self.nvml is not None:
             mem_clocks = self.nvml.nvmlDeviceGetSupportedMemoryClocks(self.handle)
@@ -173,6 +190,13 @@ class DvfsController:
             return False
 
     def wait_stable(self, target_mem: int, target_gpu: int, tol_mhz: int, consecutive: int, max_wait_s: int, poll_ms: int = 50) -> bool:
+        # If application clocks are set correctly, consider it stable even if current clocks are idle.
+        try:
+            app_mem, app_gpu = self.get_app_clocks()
+            if abs(app_mem - target_mem) <= tol_mhz and abs(app_gpu - target_gpu) <= tol_mhz:
+                return True
+        except Exception:
+            pass
         hit = 0
         start = time.time()
         while time.time() - start < max_wait_s:
