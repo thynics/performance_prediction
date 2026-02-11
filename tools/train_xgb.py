@@ -55,38 +55,66 @@ def main() -> None:
     y_val = df_val["S"]
 
     params = cfg["xgboost"]["params"]
-    model = xgb.XGBRegressor(
-        objective=cfg["xgboost"]["objective"],
-        n_estimators=params["n_estimators"],
-        max_depth=params["max_depth"],
-        learning_rate=params["learning_rate"],
-        subsample=params["subsample"],
-        colsample_bytree=params["colsample_bytree"],
-        reg_lambda=params["reg_lambda"],
-        min_child_weight=params["min_child_weight"],
-        eval_metric=cfg["xgboost"]["eval_metric"],
-    )
-
-    print("[train] training...")
-    model.fit(
-        X_train,
-        y_train,
-        eval_set=[(X_val, y_val)],
-        verbose=False,
-        early_stopping_rounds=cfg["xgboost"]["early_stopping_rounds"],
-    )
-    best_iter = getattr(model, "best_iteration", None)
-    if best_iter is not None:
-        print(f"[train] best_iteration={best_iter}")
-
     model_path = os.path.join(args.out_dir, "xgb_perf.json")
-    model.save_model(model_path)
+    print("[train] training...")
+    try:
+        model = xgb.XGBRegressor(
+            objective=cfg["xgboost"]["objective"],
+            n_estimators=params["n_estimators"],
+            max_depth=params["max_depth"],
+            learning_rate=params["learning_rate"],
+            subsample=params["subsample"],
+            colsample_bytree=params["colsample_bytree"],
+            reg_lambda=params["reg_lambda"],
+            min_child_weight=params["min_child_weight"],
+            eval_metric=cfg["xgboost"]["eval_metric"],
+        )
+        model.fit(
+            X_train,
+            y_train,
+            eval_set=[(X_val, y_val)],
+            verbose=False,
+            early_stopping_rounds=cfg["xgboost"]["early_stopping_rounds"],
+        )
+        best_iter = getattr(model, "best_iteration", None)
+        if best_iter is not None:
+            print(f"[train] best_iteration={best_iter}")
+        model.save_model(model_path)
+        model_type = "sklearn"
+    except TypeError:
+        # Fallback for older xgboost sklearn API without early_stopping_rounds
+        dtrain = xgb.DMatrix(X_train, label=y_train)
+        dval = xgb.DMatrix(X_val, label=y_val)
+        train_params = {
+            "objective": cfg["xgboost"]["objective"],
+            "max_depth": params["max_depth"],
+            "eta": params["learning_rate"],
+            "subsample": params["subsample"],
+            "colsample_bytree": params["colsample_bytree"],
+            "lambda": params["reg_lambda"],
+            "min_child_weight": params["min_child_weight"],
+            "eval_metric": cfg["xgboost"]["eval_metric"],
+        }
+        booster = xgb.train(
+            train_params,
+            dtrain,
+            num_boost_round=params["n_estimators"],
+            evals=[(dval, "val")],
+            early_stopping_rounds=cfg["xgboost"]["early_stopping_rounds"],
+            verbose_eval=False,
+        )
+        best_iter = booster.best_iteration if hasattr(booster, "best_iteration") else None
+        if best_iter is not None:
+            print(f"[train] best_iteration={best_iter}")
+        booster.save_model(model_path)
+        model_type = "booster"
 
     meta = {
         "feature_columns": feat_cols,
         "xgboost_params": params,
         "objective": cfg["xgboost"]["objective"],
         "eval_metric": cfg["xgboost"]["eval_metric"],
+        "model_type": model_type,
     }
     with open(os.path.join(args.out_dir, "meta.json"), "w", encoding="utf-8") as f:
         json.dump(meta, f, indent=2)
