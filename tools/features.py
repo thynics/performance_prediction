@@ -30,24 +30,57 @@ def _parse_metric_value(val: Any) -> float:
 def _load_kernel_metrics(csv_path: str) -> Dict[str, Dict[str, float]]:
     with open(csv_path, "r", encoding="utf-8") as f:
         lines = [ln for ln in f.readlines() if ln.strip() and not ln.startswith("==")]
-    df = pd.read_csv(StringIO("".join(lines)))
-    # Try to locate columns
+    if not lines:
+        raise RuntimeError(f"Empty NCU csv: {csv_path}")
+
+    # Try to locate the header line (must contain 'metric')
+    header_idx = 0
+    for i, ln in enumerate(lines):
+        if "metric" in ln.lower():
+            header_idx = i
+            break
+    csv_text = "".join(lines[header_idx:])
+    df = pd.read_csv(StringIO(csv_text))
+
+    # Identify columns robustly across NCU versions
     metric_col = None
     value_col = None
     kernel_col = None
     for col in df.columns:
-        if col.lower() in ("metric name", "metric", "name"):
+        low = col.lower()
+        if metric_col is None and ("metric name" in low or (low == "metric") or (low == "name")):
             metric_col = col
-        if col.lower() in ("metric value", "value"):
+        if value_col is None and ("metric value" in low or low == "value"):
             value_col = col
-        if col.lower() in ("kernel name", "kernel"):
+        if kernel_col is None and ("kernel" in low and "name" in low):
             kernel_col = col
-    if metric_col is None or value_col is None or kernel_col is None:
-        # Fallback to known NCU csv headers
-        metric_col = "Metric Name"
-        value_col = "Metric Value"
-        kernel_col = "Kernel Name"
+
+    # Fallbacks
+    if metric_col is None:
+        # pick first column containing "metric"
+        for col in df.columns:
+            if "metric" in col.lower():
+                metric_col = col
+                break
+    if value_col is None:
+        for col in df.columns:
+            if "value" in col.lower():
+                value_col = col
+                break
+
+    if metric_col is None or value_col is None:
+        raise RuntimeError(f"Cannot locate metric/value columns in {csv_path}. Columns={list(df.columns)}")
+
     metrics: Dict[str, Dict[str, float]] = {}
+    if kernel_col is None:
+        # No kernel column -> treat as single aggregated kernel
+        kernel = "all_kernels"
+        for _, row in df.iterrows():
+            metric = str(row[metric_col])
+            value = _parse_metric_value(row[value_col])
+            metrics.setdefault(kernel, {})[metric] = value
+        return metrics
+
     for _, row in df.iterrows():
         kernel = str(row[kernel_col])
         metric = str(row[metric_col])
